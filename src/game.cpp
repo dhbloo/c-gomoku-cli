@@ -184,14 +184,19 @@ int Game::play(const Options &      o,
         names[color] = engines[color ^ pos[0].get_turn() ^ reverse].name;
     }
 
-    for (int i = 0; i < 2; ei = (1 - ei), i++) {
+    for (int i = 0; i < 2; i++) {
         // tell engine to start a new game
         engines[i].writeln(format("START %i", o.boardSize).c_str());
 
         // wait for engine to answer OK
         if (!engines[i].wait_for_ok(o.fatalError)) {
             state = engines[i].is_crashed() ? STATE_CRASHED : STATE_TIME_LOSS;
-            return ei == 0 ? RESULT_LOSS : RESULT_WIN;
+            DIE_OR_ERR(o.fatalError,
+                       "[%d] engine %s %s at start\n",
+                       w->id,
+                       engines[i].name.c_str(),
+                       engines[i].is_crashed() ? "crashed" : "timeout");
+            return i == 0 ? RESULT_LOSS : RESULT_WIN;
         }
 
         // send game info
