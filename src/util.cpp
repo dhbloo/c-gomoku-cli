@@ -19,6 +19,7 @@
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <ctime>
 #ifdef __MINGW32__
     #include <Windows.h>

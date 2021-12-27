@@ -101,7 +101,7 @@ Engine::~Engine()
     terminate();
 }
 
-void Engine::spawn(const char *cwd, const char *run, const char **argv, bool readStdErr)
+void Engine::spawn(const char *cwd, const char *run, char **argv, bool readStdErr)
 {
     assert(argv[0]);
 
@@ -348,10 +348,10 @@ void Engine::start(const char *cmd, const char *engine_name, int64_t engine_tole
     // execvp() needs NULL terminated char **, not vec of string. Prepare a char **, whose
     // elements point to the C-string buffers of the elements of args, with the required
     // NULL at the end.
-    const char **argv = (const char **)calloc(args.size() + 1, sizeof(char *));
+    char **argv = (char **)calloc(args.size() + 1, sizeof(char *));
 
     for (size_t i = 0; i < args.size(); i++) {
-        argv[i] = args[i].c_str();
+        argv[i] = args[i].data();
     }
 
     // Spawn child process and plug pipes

@@ -74,7 +74,7 @@ private:
     std::string *messages;
     int64_t      tolerance;
 
-    void spawn(const char *cwd, const char *run, const char **argv, bool readStdErr);
+    void spawn(const char *cwd, const char *run, char **argv, bool readStdErr);
     void parse_about(const char *fallbackName);
     // process MESSAGE, UNKNOWN, ERROR, DEBUG messages
     void process_message_ifneeded(const char *line);
