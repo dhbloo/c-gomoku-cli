@@ -35,8 +35,8 @@ public:
         std::string           engineName;
         std::string           description;
         std::function<void()> callback;
-        bool                  set;
-        bool                  called;
+        bool                  set    = false;
+        bool                  called = false;
     };
 
     const int  id;  // starts at 1 (0 is for main thread)

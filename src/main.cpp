@@ -28,6 +28,7 @@
 #include "util.h"
 #include "workers.h"
 
+#include <signal.h>
 #include <cassert>
 #include <cstdlib>
 #include <iostream>
@@ -51,13 +52,16 @@ static const LZ4F_preferences_t LZ4Pref = {.frameInfo        = {},
                                            .favorDecSpeed    = 0,
                                            .reserved         = {}};
 
-static void main_destroy(void)
+static void close_sample_file(bool signal_exit)
 {
-    for (Worker *worker : workers)
-        delete worker;
-    workers.clear();
-
     if (sampleFile) {
+        std::aligned_storage_t<sizeof(FileLock)> lock_storage;
+
+        if (signal_exit) {
+            // We only do contructor of FileLock here...
+            new (&lock_storage) FileLock (sampleFile);
+        }
+        
         if (options.sp.compress) {
             // Flush LZ4 tails and release LZ4 context
             const size_t bufSize = LZ4F_compressBound(0, nullptr);
@@ -66,8 +70,26 @@ static void main_destroy(void)
             fwrite(buf, 1, size, sampleFile);
             LZ4F_freeCompressionContext(sampleFileLz4Ctx);
         }
+
         fclose(sampleFile);
+        sampleFile = nullptr;
     }
+}
+
+static void signal_handler(int signal)
+{
+    printf("Saving sample file...\n");
+    close_sample_file(true);
+    _Exit(EXIT_SUCCESS);
+}
+
+static void main_destroy(void)
+{
+    for (Worker *worker : workers)
+        delete worker;
+    workers.clear();
+
+    close_sample_file(false);
 
     if (pgnSeqWriter)
         delete pgnSeqWriter;
@@ -82,6 +104,7 @@ static void main_destroy(void)
 
 static void main_init(int argc, const char **argv)
 {
+    signal(SIGINT, signal_handler);
     atexit(main_destroy);
 
     initZobrish();
