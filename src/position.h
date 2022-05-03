@@ -99,7 +99,6 @@ private:
     int      moveCount;
     move_t   historyMoves[MaxBoardSizeSqr];
     Color    playerToMove;
-    uint64_t key;
     int      winConnectionLen;
     Pos      winConnectionPos[32];
 
@@ -162,8 +161,3 @@ inline Color ColorFromMove(move_t move)
 {
     return (Color)(move >> 10);
 }
-
-extern uint64_t zobristPc[4][Position::MaxBoardSizeSqr];
-extern uint64_t zobristTurn[4];
-
-void initZobrish();

@@ -109,8 +109,6 @@ static void main_init(int argc, const char **argv)
     signal(SIGINT, signal_handler);
     atexit(main_destroy);
 
-    initZobrish();
-
     options_parse(argc, argv, options, eo);
 
     jq = new JobQueue((int)eo.size(), options.rounds, options.games, options.gauntlet);

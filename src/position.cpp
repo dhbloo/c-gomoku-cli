@@ -82,7 +82,6 @@ void Position::initBoard(int size)
     boardSizeSqr = boardSize * boardSize;
     moveCount    = 0;
     playerToMove = BLACK;
-    key          = (uint64_t)0;
     for (int i = 0; i < MaxBoardSizeSqr; i++) {
         board[i] = (CoordX(i) >= 0 && CoordX(i) < boardSize && CoordY(i) >= 0
                     && CoordY(i) < boardSize)
@@ -104,7 +103,6 @@ void Position::move(move_t m)
     setPiece(pos, playerToMove);
     historyMoves[moveCount] = m;
     playerToMove            = opponent_color(playerToMove);
-    key ^= zobristTurn[playerToMove];
     moveCount++;
 }
 
@@ -114,7 +112,6 @@ void Position::undo()
     moveCount--;
     Pos lastPos = PosFromMove(historyMoves[moveCount]);
     delPiece(lastPos);
-    key ^= zobristTurn[playerToMove];
     playerToMove = opponent_color(playerToMove);
 }
 
@@ -206,14 +203,12 @@ void Position::setPiece(Pos pos, Color piece)
     assert(isInBoard(pos));
     assert(board[pos] == EMPTY);
     board[pos] = piece;
-    key ^= zobristPc[piece][pos];
 }
 
 void Position::delPiece(Pos pos)
 {
     assert(isInBoard(pos));
     assert(board[pos] == WHITE || board[pos] == BLACK);
-    key ^= zobristPc[board[pos]][pos];
     board[pos] = EMPTY;
 }
 
@@ -875,37 +870,4 @@ bool Position::isDoubleThree(Pos pos, Color piece)
     }
 
     return false;
-}
-
-// zobrist
-
-uint64_t zobristPc[4][Position::MaxBoardSizeSqr];
-uint64_t zobristTurn[4];
-
-uint64_t get_rnd64()
-{
-    uint64_t r1 = rand();
-    uint64_t r2 = rand();
-    uint64_t r3 = rand();
-    uint64_t r4 = rand();
-    uint64_t r  = (r1 << 48) | (r2 << 32) | (r3 << 16) | (r4);
-    return r;
-}
-
-void initZobrish()
-{
-    for (int i = 0; i < Position::MaxBoardSizeSqr; i++) {
-        for (int j = 0; j < 4; j++) {
-            if (j == EMPTY || j == WALL) {
-                zobristPc[j][i] = 0;
-            }
-            else {
-                zobristPc[j][i] = get_rnd64();
-            }
-        }
-    }
-    zobristTurn[EMPTY] = 0;
-    zobristTurn[BLACK] = 0;
-    zobristTurn[WHITE] = get_rnd64();
-    zobristTurn[WALL]  = 0;
 }
