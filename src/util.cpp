@@ -45,13 +45,12 @@ int64_t system_msec()
 {
     struct timespec t = {};
     clock_gettime(CLOCK_MONOTONIC, &t);
-    return t.tv_sec * 1000LL + t.tv_nsec / 1000000;
+    return t.tv_sec * 1000 + t.tv_nsec / 1000000;
 }
 
 void system_sleep(int64_t msec)
 {
-    const struct timespec t = {.tv_sec  = msec / 1000,
-                               .tv_nsec = (msec % 1000) * 1000000LL};
+    const struct timespec t = {.tv_sec = msec / 1000, .tv_nsec = (msec % 1000) * 1000000};
     nanosleep(&t, NULL);
 }
 

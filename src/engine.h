@@ -19,8 +19,6 @@
     #include <sys/types.h>
 #endif
 
-#include <cinttypes>
-#include <cstdbool>
 #include <cstdio>
 #include <string>
 
@@ -50,10 +48,10 @@ public:
     void writeln(const char *buf);
 
     bool wait_for_ok(bool fatalError);
-    bool bestmove(int64_t &    timeLeft,
+    bool bestmove(int64_t     &timeLeft,
                   int64_t      maxTurnTime,
                   std::string &best,
-                  Info &       info,
+                  Info        &info,
                   int          moveply);
 
     bool is_ok() const { return pid != 0; }
@@ -62,6 +60,9 @@ public:
 private:
     Worker *const w;
     const bool    isDebug;
+    FILE         *in, *out;
+    std::string  *messages;
+    int64_t       tolerance;
 
 #ifdef __MINGW32__
     long  pid;
@@ -70,13 +71,17 @@ private:
     pid_t pid;
 #endif
 
-    FILE *       in, *out;
-    std::string *messages;
-    int64_t      tolerance;
+    enum OutputType {
+        O_DIRECT,   // No prefix
+        O_UNKNOWN,  // Output with prefix "UNKNOWN"
+        O_ERROR,    // Output with prefix "ERROR"
+        O_MESSAGE,  // Output with prefix "MESSAGE"
+        O_DEBUG,    // Output with prefix "DEBUG"
+        O_SUGGEST,  // Output with prefix "SUGGEST"
+    };
 
-    void spawn(const char *cwd, const char *run, char **argv, bool readStdErr);
-    void parse_about(const char *fallbackName);
-    // process MESSAGE, UNKNOWN, ERROR, DEBUG messages
-    void process_message_ifneeded(const char *line);
-    void parse_thinking_messages(const char *line, Info &info);
+    void       spawn(const char *cwd, const char *run, char **argv, bool readStdErr);
+    void       parse_about(const char *fallbackName);
+    OutputType process_common_output(const char *line, const char *&tail_out);
+    void       parse_thinking_message(const char *line, Info &info);
 };

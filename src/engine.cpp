@@ -92,8 +92,11 @@ static std::string argvQuote(std::string_view arg)
 Engine::Engine(Worker *worker, bool debug, std::string *outmsg)
     : w(worker)
     , isDebug(debug)
-    , pid(0)
+    , in(nullptr)
+    , out(nullptr)
     , messages(outmsg)
+    , tolerance(0)
+    , pid(0)
 {}
 
 Engine::~Engine()
@@ -286,9 +289,9 @@ void Engine::spawn(const char *cwd, const char *run, char **argv, bool readStdEr
 #endif
 }
 
-static void engine_parse_cmd(const char *              cmd,
-                             std::string &             cwd,
-                             std::string &             run,
+static void engine_parse_cmd(const char               *cmd,
+                             std::string              &cwd,
+                             std::string              &run,
                              std::vector<std::string> &args)
 {
     // Isolate the first token being the command to run.
@@ -348,7 +351,7 @@ void Engine::start(const char *cmd, const char *engine_name, int64_t engine_tole
     // execvp() needs NULL terminated char **, not vec of string. Prepare a char **, whose
     // elements point to the C-string buffers of the elements of args, with the required
     // NULL at the end.
-    char **argv = new char *[args.size() + 1] {nullptr};
+    char **argv = new char *[args.size() + 1] { nullptr };
 
     for (size_t i = 0; i < args.size(); i++) {
         argv[i] = args[i].data();
@@ -490,10 +493,10 @@ bool Engine::wait_for_ok(bool fatalError)
     return line == "OK";
 }
 
-bool Engine::bestmove(int64_t &    timeLeft,
+bool Engine::bestmove(int64_t     &timeLeft,
                       int64_t      maxTurnTime,
                       std::string &best,
-                      Info &       info,
+                      Info        &info,
                       int          moveply)
 {
     const int64_t start          = system_msec();
@@ -522,16 +525,13 @@ bool Engine::bestmove(int64_t &    timeLeft,
         timeLeft          = matchTimeLimit - now;
         turnTimeLeft      = turnTimeLimit - now;
 
-        if (isDebug)
-            process_message_ifneeded(line.c_str());
-
-        if (const char *tail = string_prefix(line.c_str(), "MESSAGE")) {
+        if (const char *tail; process_common_output(line.c_str(), tail) == O_MESSAGE) {
             // record engine messages
             if (messages)
-                *messages += format("%i) %s: %s\n", moveply, name, tail + 1);
+                *messages += format("%i) %s: %s\n", moveply, name, tail);
 
-            // parse and store thing infomation to info
-            parse_thinking_messages(line.c_str(), info);
+            // parse and store thing information to info
+            parse_thinking_message(tail, info);
         }
         else if (Position::is_valid_move_gomostr(line)) {
             best   = line;
@@ -551,16 +551,10 @@ bool Engine::bestmove(int64_t &    timeLeft,
             if (!readln(line))
                 goto Exit;
 
-            if (isDebug)
-                process_message_ifneeded(line.c_str());
-
-            if (const char *tail = string_prefix(line.c_str(), "MESSAGE")) {
-                // record engine messages
-                if (messages)
-                    *messages += format("%i) %s: %s\n", moveply, name, tail + 1);
-
+            if (const char *tail;
+                process_common_output(line.c_str(), tail) == O_MESSAGE) {
                 // parse and store thing infomation to info
-                parse_thinking_messages(line.c_str(), info);
+                parse_thinking_message(tail, info);
             }
         } while (result = Position::is_valid_move_gomostr(line), !result);
     }
@@ -570,9 +564,9 @@ Exit:
     return result;
 }
 
-static void parse_and_display_engine_about(const Worker *   w,
+static void parse_and_display_engine_about(const Worker    *w,
                                            std::string_view line,
-                                           std::string &    engine_name)
+                                           std::string     &engine_name)
 {
     int                      flag = 0;
     std::vector<std::string> tokens;
@@ -616,19 +610,16 @@ static void parse_and_display_engine_about(const Worker *   w,
             }
         }
         else if (tokens[i] == "version") {
-            if ((i + 1) < tokens.size()) {
+            if ((i + 1) < tokens.size())
                 version = tokens[i + 1];
-            }
         }
         else if (tokens[i] == "author") {
-            if ((i + 1) < tokens.size()) {
+            if ((i + 1) < tokens.size())
                 author = tokens[i + 1];
-            }
         }
         else if (tokens[i] == "country") {
-            if ((i + 1) < tokens.size()) {
+            if ((i + 1) < tokens.size())
                 country = tokens[i + 1];
-            }
         }
     }
 
@@ -648,10 +639,13 @@ void Engine::parse_about(const char *fallbackName)
                     "about");
     writeln("ABOUT");
 
+    // read about output (skip other outputs first)
     std::string line;
-    if (!readln(line)) {
-        DIE("[%d] engine %s exited before answering ABOUT\n", w->id, name.c_str());
-    }
+    const char *tail;
+    do {
+        if (!readln(line))
+            DIE("[%d] engine %s exited before answering ABOUT\n", w->id, name.c_str());
+    } while (process_common_output(line.c_str(), tail) != O_DIRECT);
 
     w->deadline_clear();
 
@@ -664,26 +658,39 @@ void Engine::parse_about(const char *fallbackName)
 }
 
 // process MESSAGE, UNKNOWN, ERROR, DEBUG messages
-void Engine::process_message_ifneeded(const char *line)
+// @param tail_out Pointer to receive the start position of output without prefix.
+Engine::OutputType Engine::process_common_output(const char *line, const char *&tail)
 {
-    // Isolate the first token being the command to run.
-    const char *tail = nullptr;
+    tail            = nullptr;
+    OutputType type = O_DIRECT;
 
     if ((tail = string_prefix(line, "MESSAGE"))) {
-        printf("engine %s output message:%s\n", name.c_str(), tail);
-    }
-    else if ((tail = string_prefix(line, "UNKNOWN"))) {
-        printf("engine %s output unknown:%s\n", name.c_str(), tail);
+        type = O_MESSAGE;
     }
     else if ((tail = string_prefix(line, "DEBUG"))) {
-        printf("engine %s output debug:%s\n", name.c_str(), tail);
+        type = O_DEBUG;
     }
-    else if ((tail = string_prefix(line, "ERROR"))) {
-        printf("engine %s output error:%s\n", name.c_str(), tail);
+    if ((tail = string_prefix(line, "UNKNOWN"))) {
+        type = O_UNKNOWN;
     }
+    if ((tail = string_prefix(line, "ERROR"))) {
+        type = O_ERROR;
+    }
+    if ((tail = string_prefix(line, "SUGGEST"))) {
+        type = O_SUGGEST;
+    }
+
+    if (isDebug && type != O_DIRECT) {
+        const char *outputTypeStrings[] =
+            {"", "unknown", "error", "message", "debug", "suggest"};
+        printf("Engine %s output %s:%s\n", name.c_str(), outputTypeStrings[type], tail);
+    }
+
+    tail += 1;  // skip one space
+    return type;
 }
 
-void Engine::parse_thinking_messages([[maybe_unused]] const char *line, Info &info)
+void Engine::parse_thinking_message([[maybe_unused]] const char *line, Info &info)
 {
     // Set default value
     info.score = 0;

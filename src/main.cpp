@@ -76,7 +76,7 @@ static void close_sample_file(bool signal_exit)
     }
 }
 
-static void signal_handler(int signal)
+static void signal_handler([[maybe_unused]] int signal)
 {
     printf("Saving sample file...\n");
     close_sample_file(true);
