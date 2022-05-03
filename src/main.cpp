@@ -28,21 +28,21 @@
 #include "util.h"
 #include "workers.h"
 
-#include <signal.h>
 #include <cassert>
 #include <cstdlib>
 #include <iostream>
+#include <signal.h>
 #include <thread>
 
 static Options                    options;
 static std::vector<EngineOptions> eo;
-static Openings *                 openings;
-static JobQueue *                 jq;
-static SeqWriter *                pgnSeqWriter;
-static SeqWriter *                sgfSeqWriter;
-static SeqWriter *                msgSeqWriter;
+static Openings                  *openings;
+static JobQueue                  *jq;
+static SeqWriter                 *pgnSeqWriter;
+static SeqWriter                 *sgfSeqWriter;
+static SeqWriter                 *msgSeqWriter;
 static std::vector<Worker *>      workers;
-static FILE *                     sampleFile;
+static FILE                      *sampleFile;
 static LZ4F_compressionContext_t  sampleFileLz4Ctx;
 
 // Compression preference for binary samples
@@ -59,9 +59,9 @@ static void close_sample_file(bool signal_exit)
 
         if (signal_exit) {
             // We only do contructor of FileLock here...
-            new (&lock_storage) FileLock (sampleFile);
+            new (&lock_storage) FileLock(sampleFile);
         }
-        
+
         if (options.sp.compress) {
             // Flush LZ4 tails and release LZ4 context
             const size_t bufSize = LZ4F_compressBound(0, nullptr);
@@ -78,7 +78,9 @@ static void close_sample_file(bool signal_exit)
 
 static void signal_handler([[maybe_unused]] int signal)
 {
-    printf("Saving sample file...\n");
+    if (sampleFile) {
+        printf("Saving sample file...\n");
+    }
     close_sample_file(true);
     _Exit(EXIT_SUCCESS);
 }

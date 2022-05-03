@@ -1,7 +1,7 @@
 CC=g++
 #CXXFLAGS+= -g -DDEBUG
 CXXFLAGS+= -DNDEBUG
-CXXFLAGS+= -std=c++17 -O2 -fno-exceptions -fno-rtti -msse4.2 -pthread -lm -m64 -flto -static -s -DIS_64BIT
+CXXFLAGS+= -std=c++17 -O3 -fno-exceptions -fno-rtti -pthread -lm -m64 -flto -static -s
 CXXFLAGS+= -Wall -Wcast-qual -Wextra -Wshadow -fstrict-aliasing -Wno-attributes
 
 
