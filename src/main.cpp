@@ -170,7 +170,7 @@ static void thread_start(Worker *w)
     while (jq->pop(job, idx, count)) {
         // Clear all previous engine messages and write game index
         if (!options.msg.empty()) {
-            messages = "------------------------------\n";
+            messages = "----------------------------------------\n";
             messages += format("Game ID: %zu\n", idx + 1);
         }
 
@@ -225,10 +225,8 @@ static void thread_start(Worker *w)
 
         if (!options.gauntlet || !options.saveLoseOnly || wld == RESULT_LOSS) {
             // Write to PGN file
-            if (pgnSeqWriter) {
-                const int pgnVerbosity = 0;
-                pgnSeqWriter->push(idx, game.export_pgn(idx + 1, pgnVerbosity));
-            }
+            if (pgnSeqWriter)
+                pgnSeqWriter->push(idx, game.export_pgn(idx + 1));
 
             // Write to SGF file
             if (sgfSeqWriter)
@@ -276,9 +274,7 @@ static void thread_start(Worker *w)
         }
 
         // Tournament update
-        if (eo.size() > 2) {
-            jq->print_results((size_t)options.games);
-        }
+        jq->print_results((size_t)options.games);
     }
 
     for (int i = 0; i < 2; i++) {

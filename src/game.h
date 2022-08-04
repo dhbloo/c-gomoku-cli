@@ -24,6 +24,9 @@
 #include <string_view>
 #include <vector>
 
+// Game results
+enum { RESULT_LOSS, RESULT_DRAW, RESULT_WIN, NB_RESULT };
+
 enum {
     STATE_NONE,
 
@@ -64,15 +67,15 @@ public:
     Game(int round, int game, Worker *worker);
 
     bool load_opening(std::string_view opening_str,
-                      const Options &  o,
+                      const Options   &o,
                       size_t           currentRound,
-                      Color &          color);
+                      Color           &color);
     int
     play(const Options &o, Engine engines[2], const EngineOptions *eo[2], bool reverse);
 
     void
     decode_state(std::string &result, std::string &reason, const char *restxt[3]) const;
-    std::string export_pgn(size_t gameIdx, int verbosity) const;
+    std::string export_pgn(size_t gameIdx) const;
     std::string export_sgf(size_t gameIdx) const;
     void
     export_samples(FILE *out, bool bin, LZ4F_compressionContext_t lz4Ctx = nullptr) const;
@@ -83,10 +86,10 @@ private:
     void send_board_command(const Position &position, Engine &engine);
     void gomocup_turn_info_command(const EngineOptions &eo,
                                    const int64_t        timeLeft,
-                                   Engine &             engine);
+                                   Engine              &engine);
     void gomocup_game_info_command(const EngineOptions &eo,
-                                   const Options &      option,
-                                   Engine &             engine);
+                                   const Options       &option,
+                                   Engine              &engine);
     void export_samples_csv(FILE *out) const;
     void export_samples_bin(FILE *out, LZ4F_compressionContext_t lz4Ctx) const;
 };

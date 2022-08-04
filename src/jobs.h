@@ -21,12 +21,14 @@
 #include <string_view>
 #include <vector>
 
-// Result for each pair (e1, e2); e1 < e2. Stores count of game outcomes from e1's point
-// of view.
+// Result for each pair (e1, e2); e1 < e2. Stores trinomial count of game outcomes from
+// e1's point of view.
 struct Result
 {
     int ei[2];
     int count[3];
+
+    int total() const { return count[0] + count[1] + count[2]; }
 };
 
 // Job: instruction to play a single game

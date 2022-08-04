@@ -30,6 +30,6 @@ public:
 
 private:
     std::mutex        mtx;
-    FILE *            file;
+    FILE             *file;
     std::vector<long> index;  // vector of file offsets
 };

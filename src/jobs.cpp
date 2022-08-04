@@ -16,8 +16,8 @@
 
 #include "jobs.h"
 
+#include "game.h"
 #include "util.h"
-#include "workers.h"
 
 #include <cassert>
 #include <cstdio>
@@ -26,7 +26,7 @@ static void job_queue_init_pair(int               games,
                                 int               e1,
                                 int               e2,
                                 int               pair,
-                                int &             added,
+                                int              &added,
                                 int               round,
                                 std::vector<Job> &jobs)
 {
@@ -142,14 +142,12 @@ void JobQueue::print_results(size_t frequency)
         // Print out tournament results up to now
         for (size_t i = 0; i < results.size(); i++) {
             const Result r = results[i];
-            const int    n =
-                r.count[RESULT_WIN] + r.count[RESULT_LOSS] + r.count[RESULT_DRAW];
 
-            if (n) {
+            if (r.total()) {
                 char score[8] = "";
                 sprintf(score,
                         "%.3f",
-                        (r.count[RESULT_WIN] + 0.5 * r.count[RESULT_DRAW]) / n);
+                        (r.count[RESULT_WIN] + 0.5 * r.count[RESULT_DRAW]) / r.total());
                 out += format("%s vs %s: %i - %i - %i  [%s] %i\n",
                               names[r.ei[0]],
                               names[r.ei[1]],
@@ -157,7 +155,7 @@ void JobQueue::print_results(size_t frequency)
                               r.count[RESULT_LOSS],
                               r.count[RESULT_DRAW],
                               score,
-                              n);
+                              r.total());
             }
         }
 

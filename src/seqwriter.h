@@ -40,7 +40,7 @@ public:
 private:
     std::mutex          mtx;
     std::vector<SeqStr> buf;
-    FILE *              out;
+    FILE               *out;
     size_t              idxNext;
 
     void write_to_i(size_t i);

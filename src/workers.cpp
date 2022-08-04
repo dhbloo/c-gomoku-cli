@@ -21,9 +21,9 @@ Worker::~Worker()
     }
 }
 
-void Worker::deadline_set(const char *          engineName,
+void Worker::deadline_set(const char           *engineName,
                           int64_t               timeLimit,
-                          const char *          description,
+                          const char           *description,
                           std::function<void()> callback)
 {
     assert(timeLimit > 0);

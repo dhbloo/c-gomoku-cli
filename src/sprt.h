@@ -15,12 +15,11 @@
  */
 
 #pragma once
-#include "workers.h"
 
 struct SPRTParam
 {
     double elo0, elo1, alpha, beta;
 
     bool validate() const;
-    bool done(int wldCount[NB_RESULT]) const;
+    bool done(int wldCount[3]) const;
 };

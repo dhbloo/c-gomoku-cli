@@ -21,9 +21,6 @@
 #include <string>
 #include <vector>
 
-// Game results
-enum { RESULT_LOSS, RESULT_DRAW, RESULT_WIN, NB_RESULT };
-
 // Per thread data
 class Worker
 {
@@ -42,14 +39,14 @@ public:
     const int  id;  // starts at 1 (0 is for main thread)
     Deadline_t deadline;
     uint64_t   seed;  // seed for prng()
-    FILE *     log;
+    FILE      *log;
 
     Worker(int id, const char *logName);
     ~Worker();
 
-    void    deadline_set(const char *          engineName,
+    void    deadline_set(const char           *engineName,
                          int64_t               timeLimit,
-                         const char *          description,
+                         const char           *description,
                          std::function<void()> callback = nullptr);
     void    deadline_clear();
     void    deadline_callback_once();

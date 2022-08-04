@@ -16,6 +16,8 @@
 
 #include "sprt.h"
 
+#include "game.h"
+
 #include <cmath>
 
 static double elo_to_score(double elo)
@@ -27,8 +29,8 @@ static double elo_to_score(double elo)
 // http://hardy.uhasselt.be/Toga/GSPRT_approximation.pdf
 static double sprt_llr(int wldCount[NB_RESULT], double elo0, double elo1)
 {
-    if (!!wldCount[0] + !!wldCount[1] + !!wldCount[2]
-        < 2)  // at least 2 among 3 must be non zero
+    // at least 2 among 3 must be non zero
+    if (!!wldCount[0] + !!wldCount[1] + !!wldCount[2] < 2)
         return 0;
 
     const int    n = wldCount[RESULT_WIN] + wldCount[RESULT_LOSS] + wldCount[RESULT_DRAW];

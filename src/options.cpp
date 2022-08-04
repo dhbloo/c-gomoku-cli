@@ -214,8 +214,8 @@ static void check_rule_code(GameRule gr)
 }
 
 void options_parse(int                         argc,
-                   const char **               argv,
-                   Options &                   o,
+                   const char                **argv,
+                   Options                    &o,
                    std::vector<EngineOptions> &eo)
 {
     EngineOptions each;

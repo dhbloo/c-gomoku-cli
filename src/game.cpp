@@ -19,6 +19,7 @@
 #include "options.h"
 #include "position.h"
 #include "util.h"
+#include "workers.h"
 
 #include <climits>
 #include <cstring>
@@ -37,9 +38,9 @@ Game::Game(int rd, int gm, Worker *worker)
 {}
 
 bool Game::load_opening(std::string_view opening_str,
-                        const Options &  o,
+                        const Options   &o,
                         size_t           currentRound,
-                        Color &          color)
+                        Color           &color)
 {
     pos.emplace_back(o.boardSize);
 
@@ -83,14 +84,14 @@ int Game::game_apply_rules(move_t lastmove)
 
 void Game::gomocup_turn_info_command([[maybe_unused]] const EngineOptions &eo,
                                      const int64_t                         timeLeft,
-                                     Engine &                              engine)
+                                     Engine                               &engine)
 {
     engine.writeln(format("INFO time_left %" PRId64, timeLeft).c_str());
 }
 
 void Game::gomocup_game_info_command(const EngineOptions &eo,
-                                     const Options &      option,
-                                     Engine &             engine)
+                                     const Options       &option,
+                                     Engine              &engine)
 {
     // game info
     engine.writeln(format("INFO rule %i", option.gameRule).c_str());
@@ -159,7 +160,7 @@ void Game::compute_time_left(const EngineOptions &eo, int64_t &timeLeft)
     }
 }
 
-int Game::play(const Options &      o,
+int Game::play(const Options       &o,
                Engine               engines[2],
                const EngineOptions *eo[2],
                bool                 reverse)
@@ -364,7 +365,7 @@ int Game::play(const Options &      o,
 
 void Game::decode_state(std::string &result,
                         std::string &reason,
-                        const char * restxt[3]) const
+                        const char  *restxt[3]) const
 {
     result = restxt[RESULT_DRAW];
     reason.clear();
@@ -423,7 +424,7 @@ void Game::decode_state(std::string &result,
         assert(false);
 }
 
-std::string Game::export_pgn(size_t gameIdx, int verbosity) const
+std::string Game::export_pgn(size_t gameIdx) const
 {
     // Record game id as event name for each game
     std::string out = format("[Event \"%zu\"]\n", gameIdx);
@@ -447,17 +448,6 @@ std::string Game::export_pgn(size_t gameIdx, int verbosity) const
     out += format("[Result \"%s\"]\n", result);
     out += format("[Termination \"%s\"]\n", reason);
     out += format("[PlyCount \"%i\"]\n", ply);
-
-    if (verbosity > 0) {
-        // Print the moves
-        out.push_back('\n');
-
-        const std::string dummyMovesStr1 = "1. d4 Nf6 2. c4 e6 3. Nf3 d5 4. Nc3 Bb4";
-        const std::string dummyMovesStr2 =
-            "1. d4 Nf6 2. c4 e6 3. Nf3 d5 4. Nc3 Bb4 5. Bg5";
-
-        out += format("%s ", ply % 2 == 0 ? dummyMovesStr1 : dummyMovesStr2);
-    }
 
     out += result;
     out += "\n\n";
@@ -591,8 +581,8 @@ void Game::export_samples_bin(FILE *out, LZ4F_compressionContext_t lz4Ctx) const
         e.head.result    = samples[i].result;
         e.head.move      = POS_RAW(CoordX(samples[i].move), CoordY(samples[i].move));
         for (int iMove = 0; iMove < moveply; iMove++) {
-            Pos pos           = PosFromMove(hist_moves[iMove]);
-            e.position[iMove] = POS_RAW(CoordX(pos), CoordY(pos));
+            Pos p             = PosFromMove(hist_moves[iMove]);
+            e.position[iMove] = POS_RAW(CoordX(p), CoordY(p));
         }
 
         const size_t entrySize = sizeof(Entry::EntryHead) + sizeof(uint16_t) * moveply;

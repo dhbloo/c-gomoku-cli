@@ -93,14 +93,14 @@ public:
     static bool is_valid_move_gomostr(std::string_view movestr);
 
 private:
-    Color    board[MaxBoardSizeSqr];
-    int      boardSize;
-    int      boardSizeSqr;
-    int      moveCount;
-    move_t   historyMoves[MaxBoardSizeSqr];
-    Color    playerToMove;
-    int      winConnectionLen;
-    Pos      winConnectionPos[32];
+    Color  board[MaxBoardSizeSqr];
+    int    boardSize;
+    int    boardSizeSqr;
+    int    moveCount;
+    move_t historyMoves[MaxBoardSizeSqr];
+    Color  playerToMove;
+    int    winConnectionLen;
+    Pos    winConnectionPos[32];
 
     void initBoard(int size);
     void setPiece(Pos pos, Color piece);
