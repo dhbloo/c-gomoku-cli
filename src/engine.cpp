@@ -525,7 +525,7 @@ bool Engine::bestmove(int64_t     &timeLeft,
         timeLeft          = matchTimeLimit - now;
         turnTimeLeft      = turnTimeLimit - now;
 
-        if (const char *tail; process_common_output(line.c_str(), tail) == O_MESSAGE) {
+        if (const char *tail; process_common_output(line.c_str(), tail) == OT_MESSAGE) {
             // record engine messages
             if (messages)
                 *messages += format("%i) %s: %s\n", moveply, name, tail);
@@ -552,7 +552,7 @@ bool Engine::bestmove(int64_t     &timeLeft,
                 goto Exit;
 
             if (const char *tail;
-                process_common_output(line.c_str(), tail) == O_MESSAGE) {
+                process_common_output(line.c_str(), tail) == OT_MESSAGE) {
                 // parse and store thing infomation to info
                 parse_thinking_message(tail, info);
             }
@@ -645,7 +645,7 @@ void Engine::parse_about(const char *fallbackName)
     do {
         if (!readln(line))
             DIE("[%d] engine %s exited before answering ABOUT\n", w->id, name.c_str());
-    } while (process_common_output(line.c_str(), tail) != O_DIRECT);
+    } while (process_common_output(line.c_str(), tail) != OT_DIRECT);
 
     w->deadline_clear();
 
@@ -662,31 +662,30 @@ void Engine::parse_about(const char *fallbackName)
 Engine::OutputType Engine::process_common_output(const char *line, const char *&tail)
 {
     tail            = nullptr;
-    OutputType type = O_DIRECT;
+    OutputType type = OT_DIRECT;
 
-    if ((tail = string_prefix(line, "MESSAGE"))) {
-        type = O_MESSAGE;
-    }
-    else if ((tail = string_prefix(line, "DEBUG"))) {
-        type = O_DEBUG;
-    }
-    if ((tail = string_prefix(line, "UNKNOWN"))) {
-        type = O_UNKNOWN;
-    }
-    if ((tail = string_prefix(line, "ERROR"))) {
-        type = O_ERROR;
-    }
-    if ((tail = string_prefix(line, "SUGGEST"))) {
-        type = O_SUGGEST;
-    }
+    if ((tail = string_prefix(line, "MESSAGE")))
+        type = OT_MESSAGE;
+    else if ((tail = string_prefix(line, "DEBUG")))
+        type = OT_DEBUG;
+    else if ((tail = string_prefix(line, "UNKNOWN")))
+        type = OT_UNKNOWN;
+    else if ((tail = string_prefix(line, "ERROR")))
+        type = OT_ERROR;
+    else if ((tail = string_prefix(line, "SUGGEST")))
+        type = OT_SUGGEST;
+    else
+        tail = line;
 
-    if (isDebug && type != O_DIRECT) {
+    if (type != OT_DIRECT && strlen(tail) > 0)
+        tail += 1;  // skip one space
+
+    if (isDebug && type != OT_DIRECT) {
         const char *outputTypeStrings[] =
             {"", "unknown", "error", "message", "debug", "suggest"};
-        printf("Engine %s output %s:%s\n", name.c_str(), outputTypeStrings[type], tail);
+        printf("Engine %s output %s: %s\n", name.c_str(), outputTypeStrings[type], tail);
     }
-
-    tail += 1;  // skip one space
+    
     return type;
 }
 

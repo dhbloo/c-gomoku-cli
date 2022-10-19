@@ -72,12 +72,12 @@ private:
 #endif
 
     enum OutputType {
-        O_DIRECT,   // No prefix
-        O_UNKNOWN,  // Output with prefix "UNKNOWN"
-        O_ERROR,    // Output with prefix "ERROR"
-        O_MESSAGE,  // Output with prefix "MESSAGE"
-        O_DEBUG,    // Output with prefix "DEBUG"
-        O_SUGGEST,  // Output with prefix "SUGGEST"
+        OT_DIRECT,   // No prefix
+        OT_UNKNOWN,  // Output with prefix "UNKNOWN"
+        OT_ERROR,    // Output with prefix "ERROR"
+        OT_MESSAGE,  // Output with prefix "MESSAGE"
+        OT_DEBUG,    // Output with prefix "DEBUG"
+        OT_SUGGEST,  // Output with prefix "SUGGEST"
     };
 
     void       spawn(const char *cwd, const char *run, char **argv, bool readStdErr);
