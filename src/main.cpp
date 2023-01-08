@@ -136,7 +136,7 @@ static void main_init(int argc, const char **argv)
                 LZ4F_compressBegin(sampleFileLz4Ctx, buf, sizeof(buf), &LZ4Pref);
             fwrite(buf, sizeof(char), headerSize, sampleFile);
         }
-        else if (options.sp.bin) {
+        else if (options.sp.format != SAMPLE_FORMAT_CSV) {
             DIE_IF(0,
                    !(sampleFile = fopen(options.sp.fileName.c_str(), "a" FOPEN_BINARY)));
         }
@@ -238,7 +238,7 @@ static void thread_start(Worker *w)
 
             // Write to Sample file
             if (sampleFile)
-                game.export_samples(sampleFile, options.sp.bin, sampleFileLz4Ctx);
+                game.export_samples(sampleFile, options.sp.format, sampleFileLz4Ctx);
         }
 
         // Write to stdout a one line summary of the game

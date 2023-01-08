@@ -49,7 +49,8 @@ struct Sample
 {
     Position pos;
     move_t   move;    // move returned by the engine
-    int      result;  // game result from pos.turn's pov
+    int16_t  result;  // game result from pos.turn's pov
+    int16_t  eval;    // eval output from the engine
 };
 
 class Game
@@ -77,8 +78,9 @@ public:
     decode_state(std::string &result, std::string &reason, const char *restxt[3]) const;
     std::string export_pgn(size_t gameIdx) const;
     std::string export_sgf(size_t gameIdx) const;
-    void
-    export_samples(FILE *out, bool bin, LZ4F_compressionContext_t lz4Ctx = nullptr) const;
+    void        export_samples(FILE                     *out,
+                               SampleFormat              format,
+                               LZ4F_compressionContext_t lz4Ctx = nullptr) const;
 
 private:
     int  game_apply_rules(move_t lastmove);
@@ -92,4 +94,5 @@ private:
                                    Engine              &engine);
     void export_samples_csv(FILE *out) const;
     void export_samples_bin(FILE *out, LZ4F_compressionContext_t lz4Ctx) const;
+    void export_samples_binpack(FILE *out, LZ4F_compressionContext_t lz4Ctx) const;
 };

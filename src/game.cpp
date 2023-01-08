@@ -329,7 +329,9 @@ int Game::play(const Options       &o,
             Sample sample = {
                 .pos    = pos[ply],
                 .move   = played,
-                .result = NB_RESULT  // mark as invalid for now, computed after the game
+                .result = NB_RESULT,  // mark as invalid for now, computed after the game
+                // saturated evaluation score return from the engine
+                .eval = (int16_t)std::min(std::max(moveInfo.score, INT16_MIN), INT16_MAX),
             };
 
             // Record sample.
@@ -597,12 +599,165 @@ void Game::export_samples_bin(FILE *out, LZ4F_compressionContext_t lz4Ctx) const
     }
 }
 
-void Game::export_samples(FILE *out, bool bin, LZ4F_compressionContext_t lz4Ctx) const
+void Game::export_samples_binpack(FILE *out, LZ4F_compressionContext_t lz4Ctx) const
+{
+    struct EntryHead
+    {
+        uint32_t boardSize : 5;   // board size in [5-22]
+        uint32_t rule : 3;        // game rule: 0=freestyle, 1=standard, 4=renju
+        uint32_t result : 4;      // game outcome: 0=black win, 1=white win, 2=draw
+        uint32_t totalPly : 10;   // total number of stones on board after game ended
+        uint32_t initPly : 10;    // initial number of stones on board when game started
+        uint32_t gameTag : 14;    // game tag of this game, reserved for future use
+        uint32_t moveCount : 18;  // the count of move sequence
+    } head;
+    static_assert(sizeof(EntryHead) == 8);
+
+    struct Move
+    {
+        uint16_t isFirst : 1;   // is this move the first in multipv?
+        uint16_t isLast : 1;    // is this move the last in multipv?
+        uint16_t isNoEval : 1;  // does this move contain no eval info?
+        uint16_t isPass : 1;    // is this move a pass move?
+        uint16_t reserved : 2;  // reserved for future use
+        uint16_t move : 10;     // move output from engine
+        int16_t  eval;          // eval output from engine
+    };
+    std::vector<Move>     moveSequence;     // played moves of the full game
+    std::vector<uint16_t> openingPosition;  // opening position move sequence
+
+    // Get the following move index after previous sample's position,
+    // else returns -1 if this sample is not following the previous sample.
+    auto getFollowingMoveIndex = [&](const Sample &sample) -> int {
+        const move_t *hist_moves = sample.pos.get_hist_moves();
+        int           totalPly   = sample.pos.get_move_count();
+        int           index      = 0;
+
+        for (uint16_t move : openingPosition) {
+            if (index >= totalPly)
+                return -1;
+            Pos p = PosFromMove(hist_moves[index++]);
+            if (move != POS_RAW(CoordX(p), CoordY(p)))
+                return -1;
+        }
+
+        for (Move &m : moveSequence) {
+            if (index >= totalPly)
+                return -1;
+            Pos p = PosFromMove(hist_moves[index++]);
+            if (m.move != POS_RAW(CoordX(p), CoordY(p)))
+                return -1;
+        }
+
+        return index;
+    };
+
+    // Write entry data to the output file
+    auto flushEntry = [&]() {
+        // Fill ply and move count
+        head.totalPly  = moveSequence.size() + openingPosition.size();
+        head.initPly   = openingPosition.size();
+        head.moveCount = moveSequence.size();  // We only record best move for now
+
+        const size_t entrySize = sizeof(EntryHead) + sizeof(uint16_t) * head.initPly
+                                 + sizeof(Move) * head.moveCount;
+        char entryBuffer[entrySize];
+
+        std::memcpy(entryBuffer, &head, sizeof(EntryHead));
+        std::memcpy(entryBuffer + sizeof(EntryHead),
+                    openingPosition.data(),
+                    sizeof(uint16_t) * head.initPly);
+        std::memcpy(entryBuffer + sizeof(EntryHead) + sizeof(uint16_t) * head.initPly,
+                    moveSequence.data(),
+                    sizeof(Move) * head.moveCount);
+
+        if (lz4Ctx) {
+            size_t compressBufSize = LZ4F_compressBound(entrySize, nullptr);
+            char   compressBuffer[compressBufSize];
+            size_t compressSize = LZ4F_compressUpdate(lz4Ctx,
+                                                      compressBuffer,
+                                                      compressBufSize,
+                                                      entryBuffer,
+                                                      entrySize,
+                                                      nullptr);
+            fwrite(compressBuffer, compressSize, 1, out);
+        }
+        else {
+            fwrite(entryBuffer, entrySize, 1, out);
+        }
+    };
+
+    // Initialize entry data for a new sample
+    auto initEntry = [&](const Sample &sample) -> int {
+        std::memset(&head, 0, sizeof(head));
+        head.boardSize = sample.pos.get_size();
+        head.rule      = game_rule;
+        head.result    = sample.result;
+        openingPosition.clear();
+        moveSequence.clear();
+
+        int           totalply   = sample.pos.get_move_count();
+        const move_t *hist_moves = sample.pos.get_hist_moves();
+
+        for (int i = 0; i < totalply; i++) {
+            Pos      p    = PosFromMove(hist_moves[i]);
+            uint16_t move = POS_RAW(CoordX(p), CoordY(p));
+            openingPosition.push_back(move);
+        }
+
+        return totalply;
+    };
+
+    // Initialize entry data for the first sample
+    if (samples.size() > 0)
+        initEntry(samples[0]);
+
+    for (size_t i = 1; i < samples.size(); i++) {
+        // Get the following move index after previous sample's position
+        int index = getFollowingMoveIndex(samples[i]);
+        if (index == -1) {  // Start a new entry if not following the previous sample
+            flushEntry();
+            index = initEntry(samples[i]);
+        }
+
+        int           totalply   = samples[i].pos.get_move_count();
+        const move_t *hist_moves = samples[i].pos.get_hist_moves();
+        for (int iMove = index; iMove < totalply; iMove++) {
+            Pos p = PosFromMove(hist_moves[iMove]);
+            bool isFirstMove = iMove + 1 == totalply;
+            moveSequence.push_back(Move {.isFirst  = 1,
+                                         .isLast   = 1,
+                                         .isNoEval = 1, // !isFirstMove,
+                                         .isPass   = 0,
+                                         .reserved = 0,
+                                         .move     = POS_RAW(CoordX(p), CoordY(p)),
+                                         .eval     = isFirstMove ? samples[0].eval : 0});
+        }
+
+        Pos p = PosFromMove(samples[i].move);
+        moveSequence.push_back(Move {.isFirst  = 1,
+                                     .isLast   = 1,
+                                     .isNoEval = 1,
+                                     .isPass   = 0,
+                                     .reserved = 0,
+                                     .move     = POS_RAW(CoordX(p), CoordY(p)),
+                                     .eval     = samples[i].eval});
+    }
+
+    // Flush the last entry
+    if (moveSequence.size() > 0)
+        flushEntry();
+}
+
+void Game::export_samples(FILE                     *out,
+                          SampleFormat              format,
+                          LZ4F_compressionContext_t lz4Ctx) const
 {
     FileLock fl(out);
 
-    if (bin)
-        export_samples_bin(out, lz4Ctx);
-    else
-        export_samples_csv(out);
+    switch (format) {
+    case SAMPLE_FORMAT_CSV: export_samples_csv(out); break;
+    case SAMPLE_FORMAT_BIN: export_samples_bin(out, lz4Ctx); break;
+    case SAMPLE_FORMAT_BINPACK: export_samples_binpack(out, lz4Ctx); break;
+    }
 }

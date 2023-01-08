@@ -178,11 +178,19 @@ static int options_parse_sample(int argc, const char **argv, int i, Options &o)
             o.sp.fileName = tail;
         else if ((tail = string_prefix(argv[i], "format="))) {
             if (!strcmp(tail, "csv"))
-                o.sp.bin = false;
+                o.sp.format = SAMPLE_FORMAT_CSV;
             else if (!strcmp(tail, "bin"))
-                o.sp.bin = true;
-            else if (!strcmp(tail, "bin_lz4"))
-                o.sp.bin = o.sp.compress = true;
+                o.sp.format = SAMPLE_FORMAT_BIN;
+            else if (!strcmp(tail, "bin_lz4")) {
+                o.sp.format   = SAMPLE_FORMAT_BIN;
+                o.sp.compress = true;
+            }
+            else if (!strcmp(tail, "binpack"))
+                o.sp.format = SAMPLE_FORMAT_BINPACK;
+            else if (!strcmp(tail, "binpack_lz4")) {
+                o.sp.format   = SAMPLE_FORMAT_BINPACK;
+                o.sp.compress = true;
+            }
             else
                 DIE("Illegal format in -sample: '%s'\n", tail);
         }
@@ -192,9 +200,15 @@ static int options_parse_sample(int argc, const char **argv, int i, Options &o)
         i++;
     }
 
-    if (o.sp.fileName.empty())
-        o.sp.fileName =
-            format("sample.%s", o.sp.bin ? (o.sp.compress ? "bin.lz4" : "bin") : "csv");
+    if (o.sp.fileName.empty()) {
+        o.sp.fileName = "sample.";
+        if (o.sp.format == SAMPLE_FORMAT_CSV)
+            o.sp.fileName += "csv";
+        else if (o.sp.format == SAMPLE_FORMAT_BIN)
+            o.sp.fileName += (o.sp.compress ? "bin.lz4" : "bin");
+        else if (o.sp.format == SAMPLE_FORMAT_BINPACK)
+            o.sp.fileName += (o.sp.compress ? "binpack.lz4" : "binpack");
+    }
 
     return i - 1;
 }
@@ -349,6 +363,15 @@ void options_print(const Options &o, const std::vector<EngineOptions> &eo)
         }
     };
 
+    auto sampleFormatName = [](SampleFormat format) {
+        switch (format) {
+        case SAMPLE_FORMAT_CSV: return "csv";
+        case SAMPLE_FORMAT_BIN: return "bin";
+        case SAMPLE_FORMAT_BINPACK: return "binpack";
+        default: return "";
+        }
+    };
+
     std::cout << "---------------------------" << std::endl;
     std::cout << "Global Options:" << std::endl;
     std::cout << "openings = " << o.openings << std::endl;
@@ -362,7 +385,7 @@ void options_print(const Options &o, const std::vector<EngineOptions> &eo)
     std::cout << "log = " << o.log << std::endl;
     std::cout << "sample = " << o.sp.fileName << std::endl;
     if (!o.sp.fileName.empty()) {
-        std::cout << "sample.bin = " << o.sp.bin << std::endl;
+        std::cout << "sample.format = " << sampleFormatName(o.sp.format) << std::endl;
         std::cout << "sample.compress = " << o.sp.compress << std::endl;
         std::cout << "sample.freq = " << o.sp.freq << std::endl;
     }

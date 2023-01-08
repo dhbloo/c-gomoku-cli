@@ -134,21 +134,21 @@ Sampling is used to record various position and engine outputs in a game, as wel
 Syntax is `-sample [freq=%f] [format=csv|bin|bin_lz4] [file=%s]`. Example `-sample freq=0.25 format=csv file=out.csv `.
 
 + `freq` is the sampling frequency (floating point number between `0` and `1`). Defaults to `1` if omitted.
-+ `file` is the name of the file where samples are written. Defaults to `sample.[csv|bin|bin.lz4]` if omitted.
-+ `format` is the format in which the file is written. Defaults to `csv`, which is human readable: `Position,Move,Result`. `Position` is the board position in "pos" notation. `Move` is the move in "pos" notation output by the engine. `Result` is the game outcome from perspective of current side to move, values for `Result` are `0=loss`, `1=draw`, `2=win`. For binary format `bin` see the section below for details. `bin_lz4` is the same as `bin` format, but the whole file stream is compressed using [LZ4](https://github.com/lz4/lz4) to save disk space (This is suitable for huge training dataset containing millions of positions). Engines are recommended to use LZ4 "Auto Framing" API ([example](https://github.com/lz4/lz4/blob/4f0c7e45c54b7b7e42c16defb764a01129d4a0a8/examples/frameCompress.c#L171)) to decompress the training data.
++ `file` is the name of the file where samples are written. Defaults to `sample.[csv|bin|bin.lz4|binpack|binpack.lz4]` if omitted.
++ `format` is the format in which the file is written. Defaults to `csv`, which is human readable: `Position,Move,Result`. `Position` is the board position in "pos" notation. `Move` is the move in "pos" notation output by the engine. `Result` is the game outcome from perspective of current side to move, values for `Result` are `0=loss`, `1=draw`, `2=win`. For binary format `bin` and `binpack` see the section below for details. `bin_lz4` and `binpack_lz4` is the same as `bin` and `binpack` format, but the whole file stream is compressed using [LZ4](https://github.com/lz4/lz4) to save disk space (This is suitable for huge training dataset containing millions of positions). Engines are recommended to use LZ4 "Auto Framing" API ([example](https://github.com/lz4/lz4/blob/4f0c7e45c54b7b7e42c16defb764a01129d4a0a8/examples/frameCompress.c#L171)) to decompress the training data.
 
-#### Binary format
+#### Binary format (`.bin` extension)
 
-Binary format uses variable length encoding show below, which is easy to parse for engines. Each entry has a length of `4+ply` bytes. Position is represented by a move sequence that black plays first. Move sequence is guaranteed to have the same order as the actual game record.
+Binary format is the original training format for recorded games, which contains the game info, full game move sequence and the corresponding game result. Each entry is independent, using variable length encoding shown below, which is easy to parse for engines. Each entry has a length of `4+ply` bytes. Position is represented by a move sequence that black plays first. Move sequence is guaranteed to have the same order as the actual game record.
 
 ```c++
 struct Entry {
-    uint16_t result : 2;    // game outcome: 0=loss, 1=draw, 2=win (side to move pov)
-    uint16_t ply : 9;       // current number of stones on board
-    uint16_t boardsize : 5; // board size in [5-22]
-    uint16_t rule : 3;      // game rule: 0=freestyle, 1=standard, 4=renju
-    uint16_t move : 13;     // move output by the engine
-    uint16_t position[ply]; // move sequence that representing a position
+  uint16_t result : 2;    // game outcome: 0=loss, 1=draw, 2=win (side to move pov)
+  uint16_t ply : 9;       // current number of stones on board
+  uint16_t boardsize : 5; // board size in [5-22]
+  uint16_t rule : 3;      // game rule: 0=freestyle, 1=standard, 4=renju
+  uint16_t move : 13;     // move output by the engine
+  uint16_t position[ply]; // move sequence that representing a position
 };
 ```
 
@@ -158,6 +158,32 @@ Each move is represented by a 16bit unsigned integer. It's lower 10 bits are con
 uint16_t Move(int x, int y)    { return (x << 5) | y; }
 int      CoordX(uint16_t move) { return (move >> 5) & 0x1f; }
 int      CoordY(uint16_t move) { return move & 0x1f; }
+```
+
+#### Packed binary format (`.binpack` extension)
+
+Packed binary format is the new training data storage format designed to take advantage of position chains differing by a single move, thus saving plenty of disk space even without compression. It also stores more information compared to the original binary format, such as eval of each move and possible multipv outputs. Each game entry contains a head and a following move sequence. The 8 byte head contains information of one game, such as board size, rule, outcome, total ply, initial opening ply and position. The move sequence contains each 4 byte (multipv) move output with its eval. For multipv mode, each ply can contain multiple moves which are indicated by the bitmask, and the first multipv mode is always played to get the next position.
+
+```c++
+struct Entry {
+  uint32_t boardSize: 5;      // board size in [5-22]
+  uint32_t rule : 3;          // game rule: 0=freestyle, 1=standard, 4=renju
+  uint32_t result : 4;        // game outcome: 0=loss, 1=draw, 2=win (side to move/first player pov)
+  uint32_t totalPly : 10;     // total number of stones on board after game ended
+  uint32_t initPly : 10;      // initial number of stones on board when game started
+  uint32_t gameTag : 14;      // game tag of this game, reserved for future use
+  uint32_t moveCount : 18;    // the count of move sequence
+  uint16_t position[initPly]; // move sequence that representing an opening position
+  struct Move {
+    uint16_t isFirst : 1;     // is this move the first in multipv?
+    uint16_t isLast : 1;      // is this move the last in multipv?
+    uint16_t isNoEval : 1;    // does this move contain no eval info?
+    uint16_t isPass : 1;      // is this move a pass move (side not changed after this move)?
+    uint16_t reserved : 2;    // reserved for future use
+    uint16_t move : 10;       // move output from engine
+    int16_t  eval;            // eval output from engine
+  } moveSequence[moveCount];  // move sequence that representing the full game
+};
 ```
 
 

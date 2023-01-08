@@ -22,12 +22,14 @@
 #include <string>
 #include <vector>
 
+enum SampleFormat { SAMPLE_FORMAT_CSV, SAMPLE_FORMAT_BIN, SAMPLE_FORMAT_BINPACK };
+
 struct SampleParams
 {
-    std::string fileName;
-    double      freq     = 1.0;
-    bool        bin      = false;
-    bool        compress = false;
+    std::string  fileName;
+    double       freq     = 1.0;
+    SampleFormat format   = SAMPLE_FORMAT_CSV;
+    bool         compress = false;
 };
 
 struct Options
