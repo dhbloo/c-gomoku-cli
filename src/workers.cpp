@@ -73,6 +73,17 @@ void Worker::deadline_callback_once()
         deadline.called = true;
         if (deadline.callback)
             deadline.callback();
+
+        if (log) {
+            DIE_IF(id,
+                   fprintf(log,
+                           "deadline: %s exceeded [%s] after %" PRId64 "\n",
+                           deadline.engineName.c_str(),
+                           deadline.description.c_str(),
+                           deadline.timeLimit)
+                       < 0);
+            fflush(log);
+        }
     }
 }
 

@@ -723,11 +723,11 @@ void Game::export_samples_binpack(FILE *out, LZ4F_compressionContext_t lz4Ctx) c
         int           totalply   = samples[i].pos.get_move_count();
         const move_t *hist_moves = samples[i].pos.get_hist_moves();
         for (int iMove = index; iMove < totalply; iMove++) {
-            Pos p = PosFromMove(hist_moves[iMove]);
+            Pos  p           = PosFromMove(hist_moves[iMove]);
             bool isFirstMove = iMove + 1 == totalply;
             moveSequence.push_back(Move {.isFirst  = 1,
                                          .isLast   = 1,
-                                         .isNoEval = 1, // !isFirstMove,
+                                         .isNoEval = 1,  // !isFirstMove,
                                          .isPass   = 0,
                                          .reserved = 0,
                                          .move     = POS_RAW(CoordX(p), CoordY(p)),

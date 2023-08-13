@@ -310,7 +310,14 @@ int main(int argc, const char **argv)
             if (overdue > 0) {
                 workers[i]->deadline_callback_once();
             }
-            else if (overdue > 1000) {
+            else if (overdue > 3000) {
+                if (workers[i]->log)
+                    fprintf(workers[i]->log,
+                            "deadline: %s is unresponsive [%s] after %" PRId64 "\n",
+                            workers[i]->deadline.engineName.c_str(),
+                            workers[i]->deadline.description.c_str(),
+                            workers[i]->deadline.timeLimit);
+
                 DIE("[%d] engine %s is unresponsive to [%s]\n",
                     workers[i]->id,
                     workers[i]->deadline.engineName.c_str(),

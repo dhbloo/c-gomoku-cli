@@ -379,9 +379,9 @@ void Engine::terminate(bool force)
     }
 
 #ifdef __MINGW32__
-    // On windows, wait for (tolerance-200) milliseconds, then force
+    // On windows, wait for tolerance milliseconds, then force
     // terminate child process if it fails to exit in time
-    int64_t waitTime = force ? 0 : std::max<int64_t>(tolerance - 200, 0);
+    int64_t waitTime = force ? 0 : tolerance;
     DWORD   result   = WaitForSingleObject(hProcess, waitTime);
     DIE_IF(w->id, result == WAIT_FAILED);
     if (result == WAIT_TIMEOUT)
@@ -433,8 +433,12 @@ bool Engine::readln(std::string &line)
         return false;
     }
 
-    if (w->log)
-        DIE_IF(w->id, fprintf(w->log, "%s -> %s\n", name.c_str(), line.c_str()) < 0);
+    if (w->log) {
+        int64_t t = system_msec();
+        DIE_IF(w->id,
+               fprintf(w->log, "%" PRId64 ": %s -> %s\n", t, name.c_str(), line.c_str())
+                   < 0);
+    }
 
     return true;
 }
@@ -456,7 +460,9 @@ void Engine::writeln(const char *buf)
     }
 
     if (w->log) {
-        DIE_IF(w->id, fprintf(w->log, "%s <- %s\n", name.c_str(), buf) < 0);
+        int64_t t = system_msec();
+        DIE_IF(w->id,
+               fprintf(w->log, "%" PRId64 ": %s <- %s\n", t, name.c_str(), buf) < 0);
         DIE_IF(w->id, fflush(w->log) < 0);
     }
 }
@@ -512,7 +518,8 @@ bool Engine::bestmove(int64_t     &timeLeft,
     w->deadline_set(name.c_str(), turnTimeLimit + tolerance, "move", [=] {
         terminate(true);
     });
-    int64_t     moveOverhead = std::min<int64_t>(tolerance / 3, 3000);
+    // the maximum move overhead allowed is limited at 3000ms
+    int64_t     moveOverhead = std::min<int64_t>(tolerance / 2, 3000);
     bool        result       = false;
     std::string line;
 
@@ -522,7 +529,7 @@ bool Engine::bestmove(int64_t     &timeLeft,
 
         const int64_t now = system_msec();
         info.time         = now - start;
-        timeLeft          = matchTimeLimit - now;
+        timeLeft          = std::max<int64_t>(matchTimeLimit - now, 0);
         turnTimeLeft      = turnTimeLimit - now;
 
         if (const char *tail; process_common_output(line.c_str(), tail) == OT_MESSAGE) {
@@ -553,7 +560,7 @@ bool Engine::bestmove(int64_t     &timeLeft,
 
             if (const char *tail;
                 process_common_output(line.c_str(), tail) == OT_MESSAGE) {
-                // parse and store thing infomation to info
+                // parse and store thinking information to info
                 parse_thinking_message(tail, info);
             }
         } while (result = Position::is_valid_move_gomostr(line), !result);
@@ -685,7 +692,7 @@ Engine::OutputType Engine::process_common_output(const char *line, const char *&
             {"", "unknown", "error", "message", "debug", "suggest"};
         printf("Engine %s output %s: %s\n", name.c_str(), outputTypeStrings[type], tail);
     }
-    
+
     return type;
 }
 

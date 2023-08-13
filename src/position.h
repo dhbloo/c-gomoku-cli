@@ -20,6 +20,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <cstdint>
 
 typedef uint16_t move_t;
 typedef uint16_t Pos;

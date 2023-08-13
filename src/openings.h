@@ -18,6 +18,7 @@
 
 #include <cstdio>
 #include <mutex>
+#include <string>
 #include <vector>
 
 class Openings

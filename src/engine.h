@@ -20,6 +20,7 @@
 #endif
 
 #include <cstdio>
+#include <cstdint>
 #include <string>
 
 class Worker;
