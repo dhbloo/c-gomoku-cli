@@ -518,8 +518,8 @@ bool Engine::bestmove(int64_t     &timeLeft,
     w->deadline_set(name.c_str(), turnTimeLimit + tolerance, "move", [=] {
         terminate(true);
     });
-    // the maximum move overhead allowed is limited at 3000ms
-    int64_t     moveOverhead = std::min<int64_t>(tolerance / 2, 3000);
+    // the maximum move overhead allowed is half of the tolerance
+    int64_t     moveOverhead = tolerance / 2;
     bool        result       = false;
     std::string line;
 
